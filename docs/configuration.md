@@ -1,20 +1,20 @@
-# Configuration
+# Настройка
 
-olcrtc reads its entire runtime configuration from a single YAML file.
-There are no other CLI flags.
+olcrtc считывает всю свою конфигурацию среды выполнения из одного YAML-файла.
+теперь флагов CLI нет.
 
 ```bash
 olcrtc /etc/olcrtc/server.yaml
 ```
 
-Examples:
+Примеры:
 
 - [`server.example.yaml`](./server.example.yaml)
 - [`client.example.yaml`](./client.example.yaml)
 
-## Schema
+## Схема  
 
-| YAML path                                                        | Notes                                                     |
+| YAML path                                                        | Значение                                                     |
 |------------------------------------------------------------------|-----------------------------------------------------------|
 | `mode`                                                           | `srv`, `cnc`, or `gen`                                    |
 | `link`                                                           | `direct`                                                  |
