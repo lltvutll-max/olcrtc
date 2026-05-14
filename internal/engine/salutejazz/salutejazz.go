@@ -28,6 +28,14 @@ const (
 	keyEvent     = "event"
 	keyRequestID = "requestId"
 	keyPayload   = "payload"
+	keyGroupID   = "groupId"
+
+	eventMediaIn = "media-in"
+
+	payloadMethod = "method"
+	payloadTrack  = "track"
+	payloadType   = "type"
+	payloadAnswer = "answer"
 
 	credentialKeyPassword = "password"
 
@@ -544,14 +552,14 @@ func (s *Session) handleSubscriberOffer(payload map[string]any) {
 	s.wsMu.Lock()
 	_ = s.ws.WriteJSON(map[string]any{
 		keyRoomID:    s.roomID,
-		keyEvent:     "media-in",
-		"groupId":    s.groupID,
+		keyEvent:     eventMediaIn,
+		keyGroupID:   s.groupID,
 		keyRequestID: uuid.New().String(),
 		keyPayload: map[string]any{
-			"method": "rtc:answer",
+			payloadMethod: "rtc:answer",
 			"description": map[string]any{
-				"type": "answer",
-				"sdp":  answer.SDP,
+				payloadType: payloadAnswer,
+				"sdp":       answer.SDP,
 			},
 		},
 	})
@@ -617,16 +625,16 @@ func (s *Session) sendPublisherTrackAdd(trackType, source string, muted bool) er
 
 	if err := s.ws.WriteJSON(map[string]any{
 		keyRoomID:    s.roomID,
-		keyEvent:     "media-in",
-		"groupId":    s.groupID,
+		keyEvent:     eventMediaIn,
+		keyGroupID:   s.groupID,
 		keyRequestID: uuid.New().String(),
 		keyPayload: map[string]any{
-			"method": "rtc:track:add",
-			"cid":    uuid.New().String(),
-			"track": map[string]any{
-				"type":   trackType,
-				"source": source,
-				"muted":  muted,
+			payloadMethod: "rtc:track:add",
+			"cid":         uuid.New().String(),
+			payloadTrack: map[string]any{
+				payloadType: trackType,
+				"source":    source,
+				"muted":     muted,
 			},
 		},
 	}); err != nil {

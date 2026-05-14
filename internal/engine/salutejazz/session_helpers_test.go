@@ -11,6 +11,8 @@ import (
 	"github.com/pion/webrtc/v4"
 )
 
+const testJazzGroupID = "group-1"
+
 //nolint:cyclop // table-driven test naturally has many branches
 func TestSessionStateHelpers(t *testing.T) {
 	s := &Session{
@@ -116,7 +118,9 @@ func TestSessionCanSendVideoOnlyModes(t *testing.T) {
 
 func TestSendPublisherTrackAddWritesJazzPayload(t *testing.T) {
 	msgCh := make(chan map[string]any, 1)
-	upgrader := websocket.Upgrader{}
+	upgrader := websocket.Upgrader{
+		CheckOrigin: func(*http.Request) bool { return true },
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -135,7 +139,10 @@ func TestSendPublisherTrackAddWritesJazzPayload(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + server.URL[len("http"):]
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		_ = resp.Body.Close()
+	}
 	if err != nil {
 		t.Fatalf("dial websocket: %v", err)
 	}
@@ -143,7 +150,7 @@ func TestSendPublisherTrackAddWritesJazzPayload(t *testing.T) {
 
 	s := &Session{
 		roomID:  "room-1",
-		groupID: "group-1",
+		groupID: testJazzGroupID,
 		ws:      conn,
 	}
 	if err := s.sendPublisherTrackAdd("VIDEO", "CAMERA", false); err != nil {
@@ -151,21 +158,46 @@ func TestSendPublisherTrackAddWritesJazzPayload(t *testing.T) {
 	}
 
 	msg := <-msgCh
-	if msg[keyRoomID] != "room-1" || msg[keyEvent] != "media-in" || msg["groupId"] != "group-1" {
-		t.Fatalf("unexpected envelope: %+v", msg)
+	assertJazzTrackAddEnvelope(t, msg)
+	assertJazzTrackAddPayload(t, msg[keyPayload])
+}
+
+func assertJazzTrackAddEnvelope(t *testing.T, msg map[string]any) {
+	t.Helper()
+
+	if msg[keyRoomID] != "room-1" {
+		t.Fatalf("roomId = %v, want room-1", msg[keyRoomID])
 	}
-	payload, ok := msg[keyPayload].(map[string]any)
+	if msg[keyEvent] != eventMediaIn {
+		t.Fatalf("event = %v, want %s", msg[keyEvent], eventMediaIn)
+	}
+	if msg[keyGroupID] != testJazzGroupID {
+		t.Fatalf("%s = %v, want %s", keyGroupID, msg[keyGroupID], testJazzGroupID)
+	}
+}
+
+func assertJazzTrackAddPayload(t *testing.T, raw any) {
+	t.Helper()
+
+	payload, ok := raw.(map[string]any)
 	if !ok {
-		t.Fatalf("payload missing or wrong type: %+v", msg[keyPayload])
+		t.Fatalf("payload missing or wrong type: %+v", raw)
 	}
-	if payload["method"] != "rtc:track:add" {
-		t.Fatalf("method = %v, want rtc:track:add", payload["method"])
+	if payload[payloadMethod] != "rtc:track:add" {
+		t.Fatalf("%s = %v, want rtc:track:add", payloadMethod, payload[payloadMethod])
 	}
-	track, ok := payload["track"].(map[string]any)
+
+	track, ok := payload[payloadTrack].(map[string]any)
 	if !ok {
-		t.Fatalf("track missing or wrong type: %+v", payload["track"])
+		t.Fatalf("track missing or wrong type: %+v", payload[payloadTrack])
 	}
-	if track["type"] != "VIDEO" || track["source"] != "CAMERA" || track["muted"] != false {
-		t.Fatalf("track = %+v, want video camera unmuted", track)
+	if track[payloadType] != "VIDEO" {
+		t.Fatalf("%s = %v, want VIDEO", payloadType, track[payloadType])
+	}
+	if track["source"] != "CAMERA" {
+		t.Fatalf("source = %v, want CAMERA", track["source"])
+	}
+	if track["muted"] != false {
+		t.Fatalf("muted = %v, want false", track["muted"])
 	}
 }
