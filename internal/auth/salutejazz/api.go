@@ -123,7 +123,7 @@ func preconnect(ctx context.Context, roomID, password string, headers map[string
 			"b2bBaseRoomSupport":               true,
 			"demoRoomBaseSupport":              true,
 			"demoRoomVersionSupport":           2,
-			"mediaWithoutAutoSubscribeSupport": true,
+			"mediaWithoutAutoSubscribeSupport": false,
 			"webinarSpeakerSupport":            true,
 			"webinarViewerSupport":             true,
 			"sdkRoomSupport":                   true,
