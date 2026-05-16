@@ -51,33 +51,6 @@ type transportFrame struct {
 	payload   []byte
 }
 
-type inboundMessage struct {
-	totalLen uint32
-	crc      uint32
-	frags    [][]byte
-	remain   int
-}
-
-func fragmentPayload(data []byte, maxSize int) [][]byte {
-	if len(data) == 0 {
-		return [][]byte{{}}
-	}
-
-	out := make([][]byte, 0, (len(data)+maxSize-1)/maxSize)
-	for start := 0; start < len(data); start += maxSize {
-		end := start + maxSize
-		if end > len(data) {
-			end = len(data)
-		}
-
-		chunk := make([]byte, end-start)
-		copy(chunk, data[start:end])
-		out = append(out, chunk)
-	}
-
-	return out
-}
-
 func encodeDataFrameForBinding(
 	role byte,
 	binding uint32,

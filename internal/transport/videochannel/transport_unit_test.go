@@ -10,6 +10,7 @@ import (
 	"github.com/openlibrecommunity/olcrtc/internal/engine"
 	enginebuiltin "github.com/openlibrecommunity/olcrtc/internal/engine/builtin"
 	"github.com/openlibrecommunity/olcrtc/internal/transport"
+	"github.com/openlibrecommunity/olcrtc/internal/transport/common"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -150,7 +151,7 @@ func TestSendAckAndClosePaths(t *testing.T) {
 		outboundAck: make(chan []byte, 8),
 		closeCh:     make(chan struct{}),
 		writerDone:  make(chan struct{}),
-		ackWaiters:  make(map[uint32]chan uint32),
+		acks:        common.NewAckRegistry(),
 		videoQRSize: 4,
 	}
 

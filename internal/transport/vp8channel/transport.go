@@ -29,7 +29,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -42,6 +41,7 @@ import (
 	enginebuiltin "github.com/openlibrecommunity/olcrtc/internal/engine/builtin"
 	"github.com/openlibrecommunity/olcrtc/internal/logger"
 	"github.com/openlibrecommunity/olcrtc/internal/transport"
+	"github.com/openlibrecommunity/olcrtc/internal/transport/common"
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v4"
@@ -166,8 +166,8 @@ func New(ctx context.Context, cfg transport.Config) (transport.Transport, error)
 			MimeType:  webrtc.MimeTypeVP8,
 			ClockRate: 90000,
 		},
-		"vp8channel-"+randomID(),
-		"olcrtc-"+randomID(),
+		"vp8channel-"+common.RandomID(),
+		"olcrtc-"+common.RandomID(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create local video track: %w", err)
@@ -271,17 +271,6 @@ func bindingToken(clientID string) uint32 {
 		token = 1
 	}
 	return token
-}
-
-// randomID returns 8 random hex characters for use as a per-peer suffix on
-// track and stream IDs. Required for Jitsi: msid collisions between
-// participants cause Jicofo to reject session-accept.
-func randomID() string {
-	var b [4]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return fmt.Sprintf("%08x", time.Now().UnixNano())
-	}
-	return hex.EncodeToString(b[:])
 }
 
 func randomEpoch() uint32 {
