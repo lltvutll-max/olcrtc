@@ -21,9 +21,10 @@ import (
 
 	"github.com/openlibrecommunity/olcrtc/internal/app/session"
 	"github.com/openlibrecommunity/olcrtc/internal/auth"
+	"github.com/openlibrecommunity/olcrtc/internal/engine"
+	enginebuiltin "github.com/openlibrecommunity/olcrtc/internal/engine/builtin"
 	authSaluteJazz "github.com/openlibrecommunity/olcrtc/internal/auth/salutejazz"
 	authWBStream "github.com/openlibrecommunity/olcrtc/internal/auth/wbstream"
-	"github.com/openlibrecommunity/olcrtc/internal/carrier"
 	"github.com/openlibrecommunity/olcrtc/internal/client"
 	"github.com/openlibrecommunity/olcrtc/internal/server"
 	"github.com/openlibrecommunity/olcrtc/internal/supervisor"
@@ -116,21 +117,10 @@ const (
 	realE2EExpectUnstable
 )
 
-type memorySession struct {
-	stream *memoryStream
-}
-
-func (s *memorySession) Capabilities() carrier.Capabilities {
-	return carrier.Capabilities{ByteStream: true, VideoTrack: true}
-}
-
-func (s *memorySession) OpenByteStream() (carrier.ByteStream, error) {
-	return s.stream, nil
-}
-
-func (s *memorySession) OpenVideoTrack() (carrier.VideoTrack, error) {
-	return s.stream, nil
-}
+// memoryStream is registered as an engine.Session directly: it implements
+// every Session method plus engine.VideoTrackCapable (AddVideoTrack /
+// SetVideoTrackHandler aliases below). The wrapper that used to live in
+// memorySession is no longer needed after the carrier-layer collapse.
 
 type memoryRoom struct {
 	mu      sync.Mutex
@@ -271,9 +261,13 @@ func (s *memoryStream) Close() error {
 	return nil
 }
 
-func (s *memoryStream) SetReconnectCallback(cb func()) {
+func (s *memoryStream) SetReconnectCallback(cb func(*webrtc.DataChannel)) {
 	s.mu.Lock()
-	s.reconnect = cb
+	if cb == nil {
+		s.reconnect = nil
+	} else {
+		s.reconnect = func() { cb(nil) }
+	}
 	s.mu.Unlock()
 }
 func (s *memoryStream) SetShouldReconnect(func() bool) {}
@@ -288,15 +282,20 @@ func (s *memoryStream) WatchConnection(ctx context.Context) {
 func (s *memoryStream) CanSend() bool {
 	return s.isConnected()
 }
+func (s *memoryStream) GetSendQueue() chan []byte { return nil }
+func (s *memoryStream) GetBufferedAmount() uint64 { return 0 }
+func (s *memoryStream) Capabilities() engine.Capabilities {
+	return engine.Capabilities{ByteStream: true, VideoTrack: true}
+}
 
-func (s *memoryStream) AddTrack(track webrtc.TrackLocal) error {
+func (s *memoryStream) AddVideoTrack(track webrtc.TrackLocal) error {
 	s.mu.Lock()
 	s.track = track
 	s.mu.Unlock()
 	return nil
 }
 
-func (s *memoryStream) SetTrackHandler(cb func(*webrtc.TrackRemote, *webrtc.RTPReceiver)) {
+func (s *memoryStream) SetVideoTrackHandler(cb func(*webrtc.TrackRemote, *webrtc.RTPReceiver)) {
 	s.mu.Lock()
 	s.trackCB = cb
 	s.mu.Unlock()
@@ -334,12 +333,12 @@ func registerMemoryCarrier(t *testing.T) (string, *memoryRoom) {
 
 	name := "e2e-memory-" + t.Name()
 	room := &memoryRoom{streams: make(map[*memoryStream]struct{})}
-	carrier.Register(name, func(_ context.Context, cfg carrier.Config) (carrier.Session, error) {
+	enginebuiltin.Register(name, func(_ context.Context, cfg enginebuiltin.Config) (engine.Session, error) {
 		stream := &memoryStream{room: room, onData: cfg.OnData}
 		room.mu.Lock()
 		room.streams[stream] = struct{}{}
 		room.mu.Unlock()
-		return &memorySession{stream: stream}, nil
+		return stream, nil
 	})
 	return name, room
 }
@@ -348,12 +347,12 @@ func registerMemoryCarrierAs(t *testing.T, name string) {
 	t.Helper()
 
 	room := &memoryRoom{streams: make(map[*memoryStream]struct{})}
-	carrier.Register(name, func(_ context.Context, cfg carrier.Config) (carrier.Session, error) {
+	enginebuiltin.Register(name, func(_ context.Context, cfg enginebuiltin.Config) (engine.Session, error) {
 		stream := &memoryStream{room: room, onData: cfg.OnData}
 		room.mu.Lock()
 		room.streams[stream] = struct{}{}
 		room.mu.Unlock()
-		return &memorySession{stream: stream}, nil
+		return stream, nil
 	})
 }
 
@@ -362,7 +361,7 @@ func registerFailingCarrier(t *testing.T) string {
 	session.RegisterDefaults()
 
 	name := "e2e-fail-" + t.Name()
-	carrier.Register(name, func(context.Context, carrier.Config) (carrier.Session, error) {
+	enginebuiltin.Register(name, func(context.Context, enginebuiltin.Config) (engine.Session, error) {
 		return nil, errFailoverCarrier
 	})
 	return name
@@ -1094,7 +1093,7 @@ func TestRealProviderTransportMatrix(t *testing.T) {
 					expectation := realE2ECaseExpectation(carrierName, transportName)
 					label := realE2EExpectationLabel(expectation)
 					err := runRealE2ECase(t, carrierName, transportName, roomURL, echoAddr)
-					if err != nil && errors.Is(err, carrier.ErrAuthFailed) {
+					if err != nil && errors.Is(err, enginebuiltin.ErrAuthFailed) {
 						authFailed = true
 						t.Skipf("skip %s real e2e: auth failed: %v", carrierName, err)
 					}

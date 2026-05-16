@@ -34,8 +34,8 @@ import (
 	"net"
 
 	"github.com/openlibrecommunity/olcrtc/internal/auth"
-	"github.com/openlibrecommunity/olcrtc/internal/carrier/builtin"
 	"github.com/openlibrecommunity/olcrtc/internal/engine"
+	enginebuiltin "github.com/openlibrecommunity/olcrtc/internal/engine/builtin"
 )
 
 var (
@@ -88,7 +88,7 @@ type Session struct {
 // Call once at program start if you want the full set without manual blank
 // imports. Safe to call multiple times.
 func RegisterDefaults() {
-	builtin.Register()
+	enginebuiltin.RegisterDefaults()
 }
 
 // New creates a Session from cfg. The session is not connected yet; call

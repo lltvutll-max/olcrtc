@@ -11,11 +11,10 @@ import (
 	"time"
 
 	"github.com/openlibrecommunity/olcrtc/internal/auth"
-	"github.com/openlibrecommunity/olcrtc/internal/carrier"
-	"github.com/openlibrecommunity/olcrtc/internal/carrier/builtin"
 	"github.com/openlibrecommunity/olcrtc/internal/client"
 	"github.com/openlibrecommunity/olcrtc/internal/control"
 	"github.com/openlibrecommunity/olcrtc/internal/crypto"
+	enginebuiltin "github.com/openlibrecommunity/olcrtc/internal/engine/builtin"
 	"github.com/openlibrecommunity/olcrtc/internal/logger"
 	"github.com/openlibrecommunity/olcrtc/internal/names"
 	"github.com/openlibrecommunity/olcrtc/internal/server"
@@ -191,7 +190,7 @@ type Config struct {
 
 // RegisterDefaults registers built-in carriers and transports.
 func RegisterDefaults() {
-	builtin.Register()
+	enginebuiltin.RegisterDefaults()
 	transport.Register("datachannel", datachannel.New)
 	transport.Register("videochannel", videochannel.New)
 	transport.Register("seichannel", seichannel.New)
@@ -352,8 +351,8 @@ func validateAuth(cfg Config) error {
 	if cfg.Auth == "" {
 		return ErrAuthRequired
 	}
-	if !slices.Contains(carrier.Available(), cfg.Auth) {
-		return fmt.Errorf("%w: %s (available: %v)", ErrUnsupportedCarrier, cfg.Auth, carrier.Available())
+	if !slices.Contains(enginebuiltin.Available(), cfg.Auth) {
+		return fmt.Errorf("%w: %s (available: %v)", ErrUnsupportedCarrier, cfg.Auth, enginebuiltin.Available())
 	}
 	return nil
 }
@@ -724,8 +723,8 @@ func ValidateGen(cfg Config) error {
 	if cfg.Auth == "" {
 		return ErrAuthRequired
 	}
-	if !slices.Contains(carrier.Available(), cfg.Auth) {
-		return fmt.Errorf("%w: %s (available: %v)", ErrUnsupportedCarrier, cfg.Auth, carrier.Available())
+	if !slices.Contains(enginebuiltin.Available(), cfg.Auth) {
+		return fmt.Errorf("%w: %s (available: %v)", ErrUnsupportedCarrier, cfg.Auth, enginebuiltin.Available())
 	}
 	if cfg.DNSServer == "" {
 		return ErrDNSServerRequired
