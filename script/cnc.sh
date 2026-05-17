@@ -423,9 +423,8 @@ echo "  podman stop $CONTAINER_NAME"
 echo ""
 echo "Test proxy:"
 if [ -n "$SOCKS_USER" ]; then
-echo "  export all_proxy=socks5h://$SOCKS_USER:$SOCKS_PASS@$SOCKS_IP:$SOCKS_PORT"
+echo "  curl --socks5-hostname $SOCKS_USER:$SOCKS_PASS@$SOCKS_IP:$SOCKS_PORT https://icanhazip.com"
 else
-echo "  export all_proxy=socks5h://$SOCKS_IP:$SOCKS_PORT"
+echo "  curl --socks5-hostname $SOCKS_IP:$SOCKS_PORT https://icanhazip.com"
 fi
-echo "  curl -fsSL https://ifconfig.me"
 echo ""
