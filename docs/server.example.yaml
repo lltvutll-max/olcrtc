@@ -12,7 +12,7 @@ auth:
 # For jitsi: full conference URL (https://host/room or host/room).
 # For telemost / wbstream / jazz: room ID returned by the service.
 room:
-  id: "https://meet.cryptopro.ru/REPLACE_WITH_ROOM_NAME"
+  id: "https://jitsi.etudevs.ru/REPLACE_WITH_ROOM_NAME"
 
 crypto:
   # 32-byte hex (64 chars). Generate with: openssl rand -hex 32

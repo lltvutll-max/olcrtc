@@ -133,8 +133,8 @@ echo "[*] Using transport: $TRANSPORT"
 echo ""
 
 if [ "$AUTH" = "jitsi" ]; then
-    read -p "Jitsi base URL [default: https://meet.cryptopro.ru/]: " JITSI_BASE_INPUT
-    JITSI_BASE_URL=${JITSI_BASE_INPUT:-https://meet.cryptopro.ru/}
+    read -p "Jitsi base URL [default: https://jitsi.etudevs.ru/]: " JITSI_BASE_INPUT
+    JITSI_BASE_URL=${JITSI_BASE_INPUT:-https://jitsi.etudevs.ru/}
     JITSI_BASE_URL="${JITSI_BASE_URL%/}"
 
     read -p "Enter Jitsi room name or URL: " JITSI_ROOM_INPUT

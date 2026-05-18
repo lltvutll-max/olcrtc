@@ -11,7 +11,7 @@ auth:
 # For jitsi: full conference URL (https://host/room or host/room).
 # Must match the server.
 room:
-  id: "https://meet.cryptopro.ru/REPLACE_WITH_ROOM_NAME"
+  id: "https://jitsi.etudevs.ru/REPLACE_WITH_ROOM_NAME"
 
 crypto:
   # Or use key_file: "./olcrtc.key" to keep the secret out of this file.

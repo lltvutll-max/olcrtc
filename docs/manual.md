@@ -147,7 +147,7 @@ openssl rand -hex 32
 
 ### jitsi + datachannel (рекомендуется)
 
-Самый простой способ: используй любой self-hosted или публичный Jitsi Meet инстанс. Регистрация не нужна, имя комнаты выдумывается на лету. По умолчанию в примерах ниже — `meet.cryptopro.ru` (публичный CryptoPro Jitsi), но подойдёт любой другой (`meet.jit.si`, свой self-hosted и т.п.).
+Самый простой способ: используй любой self-hosted или публичный Jitsi Meet инстанс. Регистрация не нужна, имя комнаты выдумывается на лету. По умолчанию в примерах ниже — `jitsi.etudevs.ru`, но подойдёт любой другой (`meet.jit.si`, свой self-hosted и т.п.).
 
 Создай YAML конфиг:
 
@@ -158,7 +158,7 @@ link: direct
 auth:
   provider: jitsi
 room:
-  id: "https://meet.cryptopro.ru/myroom"
+  id: "https://jitsi.etudevs.ru/myroom"
 crypto:
   key: "d823fa01cb3e0609b67322f7cf984c4ee2e4ce2e294936fc24ef38c9e59f4799"
 net:
@@ -234,7 +234,7 @@ link: direct
 auth:
   provider: jitsi
 room:
-  id: "https://meet.cryptopro.ru/myroom"
+  id: "https://jitsi.etudevs.ru/myroom"
 crypto:
   key: "<hex-key-такой-же-как-на-сервере>"
 net:

@@ -103,7 +103,7 @@ Enter choice [1-4, default: 1]:
 
 Выбери сервис. Полную матрицу совместимости смотри в [settings.md](settings.md).
 
-**По умолчанию `jitsi`** — стабильно работает на datachannel против self-hosted и публичных Jitsi инстансов (например `meet.cryptopro.ru`).
+**По умолчанию `jitsi`** — стабильно работает на datachannel против self-hosted и публичных Jitsi инстансов (например `jitsi.etudevs.ru`).
 
 ### Transport (как именно передавать данные)
 
@@ -130,7 +130,7 @@ Enter choice [1-4, default: 1]:
 Enter Room ID:
 ```
 
-Для **jitsi** — полный URL комнаты в формате `https://host/room` (например `https://meet.cryptopro.ru/myroom`). Имя комнаты придумывается на лету, без регистрации. Подойдёт любой публичный или self-hosted Jitsi Meet.
+Для **jitsi** — полный URL комнаты в формате `https://host/room` (например `https://jitsi.etudevs.ru/myroom`). Имя комнаты придумывается на лету, без регистрации. Подойдёт любой публичный или self-hosted Jitsi Meet.
 
 Для **telemost** и **wbstream** - создай руму через сайт ([телемост](https://telemost.yandex.ru/), [wbstream](https://stream.wb.ru)) и вставь её ID.
 
