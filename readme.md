@@ -35,7 +35,7 @@ Community ui client: [alananisimov/olcbox](https://github.com/alananisimov/olcbo
 
 [Setting matrix](docs/settings.md)
 
-[Read before ask](docs/about.md)
+[More info](docs/about.md)
 
 [Client URI format](docs/uri.md)
 
