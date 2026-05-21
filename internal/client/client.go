@@ -326,7 +326,7 @@ func linkMaxPayload(tr transport.Transport) int {
 	return runtime.MaxPayload(tr)
 }
 
-func (c *Client) handleReconnect(ctx context.Context, cfg Config, cancel context.CancelFunc, reason string) bool {
+func (c *Client) handleReconnect(ctx context.Context, cfg Config, cancel context.CancelFunc, reason string) {
 	c.reconnectMu.Lock()
 	defer c.reconnectMu.Unlock()
 
@@ -373,10 +373,10 @@ func (c *Client) handleReconnect(ctx context.Context, cfg Config, cancel context
 		c.ln.Reconnect("liveness")
 	}
 
-	return c.retryHandshake(ctx, cfg, cancel, reason)
+	c.retryHandshake(ctx, cfg, cancel, reason)
 }
 
-func (c *Client) retryHandshake(ctx context.Context, cfg Config, cancel context.CancelFunc, reason string) bool {
+func (c *Client) retryHandshake(ctx context.Context, cfg Config, cancel context.CancelFunc, reason string) {
 	const (
 		initialDelay = 300 * time.Millisecond
 		maxDelay     = 5 * time.Second
@@ -384,11 +384,11 @@ func (c *Client) retryHandshake(ctx context.Context, cfg Config, cancel context.
 	delay := initialDelay
 	for attempt := 1; ; attempt++ {
 		if ctx.Err() != nil {
-			return false
+			return
 		}
 		logger.Infof("client reconnect attempt=%d reason=%s", attempt, reason)
 		if c.tryReopenSession(ctx, cfg, cancel, attempt) {
-			return true
+			return
 		}
 		// Don't fail the whole process on liveness reconnect: the carrier
 		// rebuild may take dozens of seconds (e.g. ICE restart on a flaky
@@ -398,11 +398,11 @@ func (c *Client) retryHandshake(ctx context.Context, cfg Config, cancel context.
 		// already up, so a missed handshake is more suspicious; cap it.
 		if reason == "carrier" && attempt >= 5 {
 			logger.Warnf("client reconnect: exhausted %d handshake attempts (reason=%s) — keeping listener up", attempt, reason)
-			return false
+			return
 		}
 		select {
 		case <-ctx.Done():
-			return false
+			return
 		case <-time.After(delay):
 		}
 		if delay < maxDelay {
