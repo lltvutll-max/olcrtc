@@ -88,6 +88,15 @@ func (c *Cipher) Encrypt(plaintext []byte) ([]byte, error) {
 
 // Decrypt decrypts ciphertext that has a nonce prepended.
 func (c *Cipher) Decrypt(ciphertext []byte) ([]byte, error) {
+	return c.DecryptInto(nil, ciphertext)
+}
+
+// DecryptInto appends the decrypted plaintext to dst (which can be nil)
+// and returns the extended slice. Pass a buffer with enough spare
+// capacity from a sync.Pool to avoid per-call allocations on the hot
+// path: the AEAD primitive will write the plaintext in place when
+// cap(dst) >= len(ciphertext) - WireOverhead.
+func (c *Cipher) DecryptInto(dst, ciphertext []byte) ([]byte, error) {
 	nonceSize := c.aead.NonceSize()
 	if len(ciphertext) < nonceSize {
 		return nil, ErrCiphertextTooShort
@@ -96,7 +105,7 @@ func (c *Cipher) Decrypt(ciphertext []byte) ([]byte, error) {
 	nonce := ciphertext[:nonceSize]
 	encrypted := ciphertext[nonceSize:]
 
-	res, err := c.aead.Open(nil, nonce, encrypted, nil)
+	res, err := c.aead.Open(dst, nonce, encrypted, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt: %w", err)
 	}
