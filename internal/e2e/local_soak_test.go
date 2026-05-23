@@ -79,7 +79,12 @@ var (
 	)
 )
 
-var errLocalSoakPayloadMismatch = errors.New("local soak payload mismatch")
+var (
+	errLocalSoakPayloadMismatch  = errors.New("local soak payload mismatch")
+	errLocalSoakTransportEmpty   = errors.New("empty transport value")
+	errLocalSoakTransportNone    = errors.New("no transports listed")
+	errLocalSoakTransportUnknown = errors.New("unknown transport")
+)
 
 // TestLocalThroughputSoak pumps a deterministic byte pattern through a
 // locally-built tunnel for -olcrtc.local-soak-duration and reports
@@ -162,7 +167,7 @@ func runLocalSoakOnce(t *testing.T, transportName string) {
 func resolveLocalSoakTransports(value string) ([]string, error) {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
-		return nil, errors.New("empty value")
+		return nil, errLocalSoakTransportEmpty
 	}
 	if strings.EqualFold(trimmed, "all") {
 		return builtInTransportNames(), nil
@@ -175,14 +180,14 @@ func resolveLocalSoakTransports(value string) ([]string, error) {
 
 	items := splitTestList(trimmed)
 	if len(items) == 0 {
-		return nil, errors.New("no transports listed")
+		return nil, errLocalSoakTransportNone
 	}
 
 	seen := make(map[string]struct{}, len(items))
 	out := make([]string, 0, len(items))
 	for _, name := range items {
 		if _, ok := known[name]; !ok {
-			return nil, fmt.Errorf("unknown transport %q", name)
+			return nil, fmt.Errorf("%w: %q", errLocalSoakTransportUnknown, name)
 		}
 		if _, dup := seen[name]; dup {
 			continue
