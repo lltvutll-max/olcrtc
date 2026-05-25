@@ -16,7 +16,7 @@ body:
     attributes:
       label: Pre-flight
       options:
-        - label: Я прочитал документацию в `docs/` и не нашёл ответа.
+        - label: Я прочитал документацию в [docs](https://github.com/openlibrecommunity/olcrtc/tree/main/docs) и не нашёл ответа.
           required: true
         - label: Я искал похожие issue (открытые и закрытые) и не нашёл дубликата.
           required: true
