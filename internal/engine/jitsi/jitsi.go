@@ -289,7 +289,7 @@ func (s *Session) Connect(ctx context.Context) error {
 	return nil
 }
 
-func (s *Session) joinAndOpenBridge(ctx context.Context) (*j.Session, error) {
+func (s *Session) joinAndOpenBridge(ctx context.Context) (*j.Session, error) { //nolint:cyclop // sequential setup steps
 	logger.Infof("jitsi: joining %s/%s as %s …", s.host, s.room, s.name)
 	jSess, err := j.Join(ctx, j.Config{
 		Host:  s.host,
@@ -305,18 +305,11 @@ func (s *Session) joinAndOpenBridge(ctx context.Context) (*j.Session, error) {
 	needBridge := s.onData != nil || s.onPeerData != nil
 	sctpBridge := needBridge && jSess.ColibriWS == ""
 
-	if needBridge && jSess.ColibriWS != "" {
-		bctx, bcancel := context.WithTimeout(ctx, bridgeOpenTimeout)
-		err := jSess.OpenBridge(bctx)
-		bcancel()
-		if err != nil {
+	if needBridge && !sctpBridge {
+		if err := s.openBridgeWS(ctx, jSess); err != nil {
 			_ = jSess.Close()
-			return nil, fmt.Errorf("open bridge: %w", err)
+			return nil, err
 		}
-		s.peerEndpoint.Store(nil)
-		s.peerVideoSSRC.Store(0)
-		s.bridgeReady.Store(true)
-		logger.Infof("jitsi: bridge open colibri-ws (endpoints=%v)", jSess.Endpoints())
 	}
 
 	if s.shouldNegotiatePC() {
@@ -327,20 +320,41 @@ func (s *Session) joinAndOpenBridge(ctx context.Context) (*j.Session, error) {
 	}
 
 	if sctpBridge {
-		bctx, bcancel := context.WithTimeout(ctx, bridgeOpenTimeout)
-		err := jSess.WaitBridgeSCTP(bctx)
-		bcancel()
-		if err != nil {
+		if err := s.openBridgeSCTP(ctx, jSess); err != nil {
 			_ = jSess.Close()
-			return nil, fmt.Errorf("open bridge sctp: %w", err)
+			return nil, err
 		}
-		s.peerEndpoint.Store(nil)
-		s.peerVideoSSRC.Store(0)
-		s.bridgeReady.Store(true)
-		logger.Infof("jitsi: bridge open sctp (endpoints=%v)", jSess.Endpoints())
 	}
 
 	return jSess, nil
+}
+
+func (s *Session) openBridgeWS(ctx context.Context, jSess *j.Session) error {
+	bctx, bcancel := context.WithTimeout(ctx, bridgeOpenTimeout)
+	err := jSess.OpenBridge(bctx)
+	bcancel()
+	if err != nil {
+		return fmt.Errorf("open bridge: %w", err)
+	}
+	s.peerEndpoint.Store(nil)
+	s.peerVideoSSRC.Store(0)
+	s.bridgeReady.Store(true)
+	logger.Infof("jitsi: bridge open colibri-ws (endpoints=%v)", jSess.Endpoints())
+	return nil
+}
+
+func (s *Session) openBridgeSCTP(ctx context.Context, jSess *j.Session) error {
+	bctx, bcancel := context.WithTimeout(ctx, bridgeOpenTimeout)
+	err := jSess.WaitBridgeSCTP(bctx)
+	bcancel()
+	if err != nil {
+		return fmt.Errorf("open bridge sctp: %w", err)
+	}
+	s.peerEndpoint.Store(nil)
+	s.peerVideoSSRC.Store(0)
+	s.bridgeReady.Store(true)
+	logger.Infof("jitsi: bridge open sctp (endpoints=%v)", jSess.Endpoints())
+	return nil
 }
 
 func (s *Session) shouldNegotiatePC() bool {
