@@ -13,7 +13,7 @@
 
 
 Этот способ для тех кто хочет собрать бинарник руками без Docker/Podman.
-Нужен Go 1.25+, mage, git.
+Нужен Go 1.26+, mage, git.
 
 ---
 
@@ -41,7 +41,7 @@ dnf install git       # Fedora / RHEL   / CentOS
 
 ---
 
-## Шаг 2: Установить Go 1.25+
+## Шаг 2: Установить Go 1.26+
 
 ### Arch / Fedora (всё просто)
 
@@ -76,16 +76,16 @@ sudo update-alternatives --install /usr/bin/gofmt gofmt `which gofmt` 10
 
 ```sh
 apt install golang                         # ставим старый go - он нужен только чтобы скачать новый
-go install golang.org/dl/go1.25.0@latest   # скачиваем установщик go1.25
-~/go/bin/go1.25.0 download                 # скачиваем сам go1.25
-mv ~/go/bin/go1.25.0 /usr/local/bin/go     # заменяем системный go
+go install golang.org/dl/go1.26.0@latest   # скачиваем установщик go1.26
+~/go/bin/go1.26.0 download                 # скачиваем сам go1.26
+mv ~/go/bin/go1.26.0 /usr/local/bin/go     # заменяем системный go
 ```
 
 ### Проверка
 
 ```sh
 go version
-# go version go1.25.x linux/amd64
+# go version go1.26.x linux/amd64
 ```
 
 ---
@@ -117,7 +117,7 @@ mage --version
 ## Шаг 4: Скачать репозиторий
 
 ```sh
-git clone https://github.com/openlibrecommunity/olcrtc --recurse-submodules
+git clone https://github.com/openlibrecommunity/olcrtc
 cd olcrtc
 ```
 
@@ -331,19 +331,66 @@ curl --socks5-hostname 127.0.0.1:8808 https://icanhazip.com
 
 ## Все mage таргеты
 
+### Сборка
 ```sh
 mage build    # собрать для текущей платформы
-mage buildCLI # собрать только CLI бинарник
 mage cross    # собрать для всех платформ
-mage deps     # скачать и обновить зависимости
-mage clean    # удалить build/
-mage test     # запустить тесты
-mage e2e      # запустить E2E тесты (нужны реальные провайдеры)
-mage lint     # запустить линтер
-mage podman   # собрать образ через podman
-mage docker   # собрать образ через docker
 mage mobile   # собрать Android AAR
+mage docker   # собрать образ через docker
+mage podman   # собрать образ через podman
+mage clean    # удалить build/
 ```
+
+### Качество
+```sh
+mage vet      # go vet
+mage lint     # golangci-lint
+mage tidy     # go mod tidy && go mod verify
+mage deps     # go mod download
+```
+
+### Тесты
+```sh
+mage test       # юниты в -short, быстро
+mage testFull   # все юниты + локальные e2e с -race
+mage e2e        # smoke-матрица против реальных провайдеров
+mage stress     # stress-матрица (~6 ч)
+mage soak       # реальный soak (часами)
+mage localSoak  # in-memory soak (без сети)
+```
+
+### Пайплайны
+```sh
+mage check       # build + vet + lint + testFull (перед коммитом)
+mage all         # check + e2e (перед мерджем PR)
+mage nightly     # all + stress (ночной CI, ~6 ч)
+mage everything  # nightly + soak + localSoak (полная валидация, 12+ ч)
+```
+
+### Прочее
+```sh
+mage help     # список таргетов в стандартном стиле mage
+mage -l       # то же что mage help
+mage         # без аргументов = mage help
+```
+
+Тонкая настройка прогона тестов через переменные окружения:
+
+```sh
+# одиночный кейс stress
+E2E_CARRIERS=telemost E2E_TRANSPORTS=videochannel \
+    STRESS_BULK_DURATION=0 STRESS_ECHO_DURATION=0 \
+    STRESS_CASE_TIMEOUT=2m STRESS_TIMEOUT=3m mage stress
+
+# soak только jitsi на 30 минут
+SOAK_CARRIERS=jitsi SOAK_DURATION=30m mage soak
+```
+
+Полный список переменных:
+- `E2E_CARRIERS`, `E2E_TRANSPORTS`, `E2E_TIMEOUT`, `E2E_STRESS`, `E2E_STRESS_DURATION`
+- `STRESS_BULK_DURATION`, `STRESS_ECHO_DURATION`, `STRESS_CASE_TIMEOUT`, `STRESS_TIMEOUT`
+- `SOAK_CARRIERS`, `SOAK_TRANSPORTS`, `SOAK_DURATION`, `SOAK_CHAOS`
+- `DOCKER_TAG`
 
 ---
 
