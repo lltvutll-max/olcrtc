@@ -63,6 +63,7 @@ const (
 	// periodic XMPP ping IQ resets that idle timer end-to-end and works for
 	// the WebSocket transport too.
 	xmppKeepaliveInterval = 25 * time.Second
+	reconnectJoinTimeout  = 30 * time.Second
 )
 
 // bridgeMagic tags every EndpointMessage produced by this engine. JVB broadcasts
@@ -1544,12 +1545,14 @@ func (s *Session) reconnect(ctx context.Context) error {
 	}
 
 	logger.Infof("jitsi: rejoin %s/%s (non-blocking) ...", s.host, s.room)
-	jSess, err := j.JoinMUC(ctx, j.Config{
+	joinCtx, joinCancel := context.WithTimeout(ctx, reconnectJoinTimeout)
+	jSess, err := j.JoinMUC(joinCtx, j.Config{
 		Host:  s.host,
 		Room:  s.room,
 		Nick:  s.name,
 		Debug: logger.IsVerbose(),
 	})
+	joinCancel()
 	if err != nil {
 		logger.Warnf("jitsi: rejoin failed: %v - full reconnect", err)
 		return s.reconnectFull(ctx)
@@ -1665,12 +1668,14 @@ func (s *Session) reconnectFull(ctx context.Context) error {
 
 	// First: join the MUC (non-blocking, does not wait for session-initiate).
 	// If this fails, it's a real connectivity problem.
-	jSess, err := j.JoinMUC(ctx, j.Config{
+	joinCtx, joinCancel := context.WithTimeout(ctx, reconnectJoinTimeout)
+	jSess, err := j.JoinMUC(joinCtx, j.Config{
 		Host:  s.host,
 		Room:  s.room,
 		Nick:  s.name,
 		Debug: logger.IsVerbose(),
 	})
+	joinCancel()
 	if err != nil {
 		return fmt.Errorf("jitsi join: %w", err)
 	}
@@ -1683,9 +1688,8 @@ func (s *Session) reconnectFull(ctx context.Context) error {
 	if err != nil {
 		// Park the session so waitForJingle can pick up later.
 		s.jSess.Store(jSess)
-		s.wg.Add(2)
+		s.wg.Add(1)
 		go s.waitForJingle()
-		go s.xmppKeepalive()
 		return errNoPeer
 	}
 
