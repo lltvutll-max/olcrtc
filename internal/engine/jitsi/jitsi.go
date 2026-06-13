@@ -506,6 +506,14 @@ func (s *Session) negotiatePC(ctx context.Context, jSess *j.Session, sctpBridge 
 	pcConfig := jSess.IceConfig()
 	pcConfig.SDPSemantics = webrtc.SDPSemanticsPlanB
 
+	// Гарантируем STUN-сервер (как в goolom-движке, internal/engine/goolom/lifecycle.go).
+	// На части Android-сетей host-кандидаты не собираются ("no usable interfaces found for
+	// mDNS"), а Jicofo может не отдать достижимый STUN → НИ ОДНОГО кандидата → ICE-таймаут
+	// (LTE/olcRTC не подключается). Добавляем надёжный RU-STUN, чтобы появились srflx-кандидаты.
+	pcConfig.ICEServers = append(pcConfig.ICEServers, webrtc.ICEServer{
+		URLs: []string{"stun:stun.rtc.yandex.net:3478"},
+	})
+
 	pc, err := api.NewPeerConnection(pcConfig)
 	if err != nil {
 		return fmt.Errorf("new pc: %w", err)
