@@ -32,6 +32,7 @@ import (
 
 	"github.com/openlibrecommunity/olcrtc/internal/engine"
 	"github.com/openlibrecommunity/olcrtc/internal/logger"
+	"github.com/openlibrecommunity/olcrtc/internal/protect"
 	pioninterceptor "github.com/pion/interceptor"
 	"github.com/pion/webrtc/v4"
 	"github.com/pion/webrtc/v4/pkg/media"
@@ -475,6 +476,15 @@ func (s *Session) videoTrackHandler() func(*webrtc.TrackRemote, *webrtc.RTPRecei
 func (s *Session) negotiatePC(ctx context.Context, jSess *j.Session, sctpBridge bool) error {
 	settings := webrtc.SettingEngine{}
 	settings.LoggerFactory = logger.NewPionLoggerFactory()
+
+	// На Android ICE-сокеты обязаны идти через защищённый dialer (ровно как в goolom-движке,
+	// см. internal/engine/goolom/lifecycle.go). Без этого pion пытается перечислить локальные
+	// интерфейсы напрямую, на Android это даёт "no usable interfaces found for mDNS" →
+	// ни одной пары кандидатов → ICE-таймаут (LTE/olcRTC не подключается). С ProxyDialer
+	// сбор кандидатов идёт через protected-сокет (Mobile.setProtector из приложения).
+	if protect.Protector != nil {
+		settings.SetICEProxyDialer(protect.NewProxyDialer())
+	}
 
 	// pion auto-registers a default interceptor chain (sender reports,
 	// receiver reports, NACK, etc.) when none is supplied. Several of
