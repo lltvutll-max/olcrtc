@@ -486,6 +486,18 @@ func (s *Session) negotiatePC(ctx context.Context, jSess *j.Session, sctpBridge 
 		settings.SetICEProxyDialer(protect.NewProxyDialer())
 	}
 
+	// На мобильных операторах (РФ LTE) UDP душат: STUN/TURN по UDP отваливаются по
+	// таймауту, и WebRTC-канал к Jitsi через время рассыпается («remote not ready»).
+	// Включаем ICE поверх TCP — тогда pion создаёт active-TCP кандидаты и может пойти к
+	// TCP/443-кандидату видеомоста Jitsi (выглядит как обычный HTTPS, операторы не режут).
+	// UDP оставляем (где он работает — он быстрее); pion сам выберет рабочую пару.
+	settings.SetNetworkTypes([]webrtc.NetworkType{
+		webrtc.NetworkTypeUDP4,
+		webrtc.NetworkTypeUDP6,
+		webrtc.NetworkTypeTCP4,
+		webrtc.NetworkTypeTCP6,
+	})
+
 	// pion auto-registers a default interceptor chain (sender reports,
 	// receiver reports, NACK, etc.) when none is supplied. Several of
 	// those probe the DTLS transport on a tick - until DTLS comes up
