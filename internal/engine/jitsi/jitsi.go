@@ -1889,7 +1889,9 @@ func (s *Session) CanSend() bool {
 	// under light/bursty load the total stays well under budget and CanSend is
 	// always true (no added latency), throttling only kicks in under sustained
 	// saturation.
-	inFlight := s.queuedBytes.Load() + int64(s.GetBufferedAmount())
+	// GetBufferedAmount returns uint64; the bridge backlog (queue depth × 16 KiB)
+	// is always far within int64 range, so this conversion cannot overflow.
+	inFlight := s.queuedBytes.Load() + int64(s.GetBufferedAmount()) //nolint:gosec // bridge-depth bytes fit int64
 	return inFlight < maxOutboundQueuedBytes
 }
 
