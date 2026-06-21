@@ -46,6 +46,18 @@ const (
 	// that cause the bridge to drop the websocket. The default datachannel
 	// transport in olcrtc already uses 12 KiB chunks, well under this limit.
 	bridgeMaxMessageSize = 16 * 1024
+	// maxOutboundQueuedBytes caps how many bytes may be in flight on the
+	// outbound path (our Go send queues + the bridge's own send backlog)
+	// before CanSend reports back-pressure. Without this, smux happily fills
+	// the 5000-slot queue (tens of MB) on a single bulk download, so every
+	// interactive request then waits behind seconds of buffered data ("the
+	// internet drops for a while"). Bounding in-flight bytes to a few BDPs
+	// keeps queueing latency in the tens-of-ms range: a bulk transfer can no
+	// longer starve page loads / DNS / messengers sharing the tunnel. The
+	// back-pressure propagates up through smux's per-stream flow control to
+	// the real TCP senders, which slow down instead of overflowing a buffer.
+	maxOutboundQueuedBytes = 256 * 1024
+
 	bridgeOpenTimeout    = 30 * time.Second
 	defaultNick          = "olcrtc"
 	credentialKeyRoom    = "room"
@@ -128,9 +140,14 @@ type Session struct {
 
 	sendQueue     chan []byte
 	peerSendQueue chan bridgeOutbound
-	bridgeReady   atomic.Bool
-	closed        atomic.Bool
-	reconnecting  atomic.Bool
+	// queuedBytes tracks the number of bytes currently sitting in sendQueue +
+	// peerSendQueue (incremented on enqueue, decremented once sendLoop pulls a
+	// frame). CanSend consults it together with the bridge backlog to apply
+	// byte-bounded back-pressure instead of letting smux flood the queue.
+	queuedBytes  atomic.Int64
+	bridgeReady  atomic.Bool
+	closed       atomic.Bool
+	reconnecting atomic.Bool
 
 	reconnectCh          chan struct{}
 	reconnectMu          sync.Mutex // guards reconnectWindowStart, reconnectCount, lastReconnectAt
@@ -1082,6 +1099,7 @@ func (s *Session) enqueueBridgeFrame(framed []byte) error {
 	}
 	select {
 	case s.sendQueue <- framed:
+		s.queuedBytes.Add(int64(len(framed)))
 		return nil
 	case <-s.done:
 		return ErrSessionClosed
@@ -1102,6 +1120,7 @@ func (s *Session) enqueuePeerBridgeFrame(peerID string, framed []byte) error {
 	}
 	select {
 	case s.peerSendQueue <- bridgeOutbound{to: peerID, data: framed}:
+		s.queuedBytes.Add(int64(len(framed)))
 		return nil
 	case <-s.done:
 		return ErrSessionClosed
@@ -1120,11 +1139,13 @@ func (s *Session) sendLoop() {
 			if !ok {
 				return
 			}
+			s.queuedBytes.Add(-int64(len(data)))
 			s.sendBridgeFrame("", data)
 		case frame, ok := <-s.peerSendQueue:
 			if !ok {
 				return
 			}
+			s.queuedBytes.Add(-int64(len(frame.data)))
 			s.sendBridgeFrame(frame.to, frame.data)
 		}
 	}
@@ -1833,6 +1854,7 @@ func (s *Session) drainSendQueue() {
 		case <-s.sendQueue:
 		case <-s.peerSendQueue:
 		default:
+			s.queuedBytes.Store(0)
 			return
 		}
 	}
@@ -1856,7 +1878,19 @@ func (s *Session) CanSend() bool {
 		s.pcMu.Unlock()
 		return ready
 	}
-	return s.bridgeReady.Load()
+	if !s.bridgeReady.Load() {
+		return false
+	}
+	// Byte-bounded back-pressure: account for what we have queued locally plus
+	// the bridge's own send backlog. When the in-flight total exceeds the
+	// budget we report "not ready" so the smux writer spins instead of piling
+	// more data on, which keeps a bulk transfer from monopolising the tunnel
+	// and stalling interactive traffic. This is adaptive by construction:
+	// under light/bursty load the total stays well under budget and CanSend is
+	// always true (no added latency), throttling only kicks in under sustained
+	// saturation.
+	inFlight := s.queuedBytes.Load() + int64(s.GetBufferedAmount())
+	return inFlight < maxOutboundQueuedBytes
 }
 
 // GetSendQueue exposes the outbound queue for upstream metrics.
