@@ -515,6 +515,23 @@ func (s *Session) negotiatePC(ctx context.Context, jSess *j.Session, sctpBridge 
 		webrtc.NetworkTypeTCP6,
 	})
 
+	// Ускорение подключения на LTE. На задушенном мобильном UDP STUN/UDP-кандидаты
+	// не отвечают, и pion по умолчанию ждёт их очень долго (failedTimeout=25s,
+	// а контролирующий агент держит ещё AcceptanceMinWait перед выбором пары:
+	// srflx 500ms / prflx 1s / relay 2s). Из-за этого подключение к LTE-серверам
+	// «думает» секунды, пока не свалится на рабочую TCP-пару.
+	//   • Короткие ICE-таймауты — мёртвые UDP-пути отбрасываются быстро (и быстрее
+	//     уходим в реконнект, а не висим).
+	//   • STUN-gather таймаут — не ждём задушенный STUN дольше пары секунд.
+	//   • AcceptanceMinWait=0 для srflx/prflx/relay — агент выбирает ПЕРВУЮ рабочую
+	//     пару сразу (на LTE это обычно TCP), не выжидая «вдруг придёт UDP получше».
+	settings.SetICETimeouts(5*time.Second, 10*time.Second, 2*time.Second)
+	settings.SetSTUNGatherTimeout(3 * time.Second)
+	settings.SetHostAcceptanceMinWait(0)
+	settings.SetSrflxAcceptanceMinWait(0)
+	settings.SetPrflxAcceptanceMinWait(0)
+	settings.SetRelayAcceptanceMinWait(0)
+
 	// pion auto-registers a default interceptor chain (sender reports,
 	// receiver reports, NACK, etc.) when none is supplied. Several of
 	// those probe the DTLS transport on a tick - until DTLS comes up
